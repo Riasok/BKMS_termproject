@@ -44,7 +44,6 @@ honorID_list = honorID_list['고유번호'].tolist()
 
 
 
-
 ##### 로그인
 def check_login(username, password):
     '''
@@ -139,10 +138,6 @@ def signup_page():
 
 
 
-
-
-
-
 ##### 메인 페이지
 def main_page():
     '''
@@ -184,16 +179,16 @@ def main_page():
         st.title(f"환영합니다 {st.session_state.users[st.session_state.username][2]}님")
         
         if st.button("예약 목록"):
-            st.session_state.page = 'reservation'
-            reservation_page()
+            st.session_state.show_reservation = True
+            st.session_state.show_main = False
 
         if st.button("병역명문가 회원 조회"):
-            st.session_state.page = 'view'
-            view_page()
+            st.session_state.show_view = True
+            st.session_state.show_main = False
 
         if st.button("PX 인기상품"):
-            st.session_state.page = 'px'
-            px_page()
+            st.session_state.show_px = True
+            st.session_state.show_main = False
         
         if st.button("로그아웃"):
             st.session_state.logged_in = False
@@ -204,17 +199,41 @@ def main_page():
 
 ##### 서브 페이지들
 def px_page():
+    '''
+    PX 인기상품 페이지
+    '''
     st.title("PX 인기상품")
+    if st.button("이전 페이지"):
+        st.session_state.show_px = False
+        st.session_state.show_main = True
+        st.experimental_rerun()
     st.table(px_info_data)
 
+
 def reservation_page():
+    '''
+    예약 목록 페이지
+    '''
     st.title("예약 목록")
+    if st.button("이전 페이지"):
+        st.session_state.show_reservation = False
+        st.session_state.show_main = True
+        st.experimental_rerun()
 
 def view_page():
+    '''
+    병역명문과 회원 조회 페이지
+    '''
     st.title("병역명문가 회원 조회")
+    if st.button("이전 페이지"):
+        st.session_state.show_view = False
+        st.session_state.show_main = True
+        st.experimental_rerun()
+    db = myDB()
+    honor_members_df = db.fetch_honor_members()
+    st.table(honor_members_df)
+    db.close()
 
-
-#search page
 def search_page():
     st.title(f"{st.session_state.search_type} 이 {st.session_state.search_query}인 검색 결과")
     db = myDB()
@@ -277,20 +296,29 @@ def main():
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
         st.session_state.username = ""
-    
     if "show_signup" not in st.session_state:
         st.session_state.show_signup = False
-
     if "show_facility" not in st.session_state:
         st.session_state.show_facility = False
-
     if "show_search" not in st.session_state:
         st.session_state.show_search = False
+    if "show_px" not in st.session_state:
+        st.session_state.show_px = False
+    if "show_view" not in st.session_state:
+        st.session_state.show_view = False
+    if "show_reservation" not in st.session_state:
+        st.session_state.show_reservation = False
 
     if st.session_state.show_facility:
         facility_page()
     elif st.session_state.show_search:
         search_page()
+    elif st.session_state.show_px:
+        px_page()
+    elif st.session_state.show_view:
+        view_page()
+    elif st.session_state.show_reservation:
+        reservation_page()
     elif st.session_state.logged_in:
         main_page()
     elif st.session_state.show_signup:
