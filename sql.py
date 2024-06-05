@@ -2,19 +2,32 @@ import psycopg2
 from psycopg2 import sql
 
 class myDB:
-    def __init_(self,database = 'database', user = 'postgres', password = 'postgres', host = 'localhost', port = '5432'):
-        self.databse = database
-        self.user = user
-        self.password = password
-        self.host = host
-        self.port = port
-        self.arg_string = "databse = %s user = %s password = %s host = %s port = %s" %(self.database, self.user, self.password, self.host, self.port)
-        self.conn = psycopg2.connect(self.arg_string)
+    def __init_(self,database = 'postgres', user = 'postgres', password = 'postgres', host = 'localhost', port = '5432'):
+        self.database = 'postgres'
+        self.user = 'postgres'
+        self.password = 'postgres'
+        self.host = 'localhost'
+        self.port = '5432'
+
+        self.conn = psycopg2.connect(
+            database = self.database,
+            user = self.user,
+            password = self.password,
+            host = self.host,
+            port = self.port,
+        )
         self.conn.autocommit = False
         self.cursor = self.conn.cursor()
 
     def refresh_cur(self):
-        self.pg_conn = pg.connect(self.arg_string)
+        self.conn = psycopg2.connect(
+            database = self.database,
+            user = self.user,
+            password = self.password,
+            host = self.host,
+            port = self.port,
+        )
+        self.conn.autocommit = False
         self.cursor = self.conn.cursor()
 
     def close(self):
@@ -27,12 +40,21 @@ class myDB:
         Args:
             region : 지역
         """
-        self.query = sql.SQL("FROM  2_facility_list SELECT * where 지역 = %s;" (region,))
+        self.query = sql.SQL(f"SELECT * FROM facility_list where 지역 LIKE '%{region}%';")
         self.cursor.execute(self.query)
-        self.result = self.fetchall()
+        self.result = self.cursor.fetchall()
         print(self.result)
-        self.commit()
+        self.conn.commit()
     
+    #로그인 기능
+    def login(self, userID, password):
+        self.cursor.execute(f"SELECT * FROM users where USERID = '{userID}'")
+        self.result = self.cursor.fetchone()
+        if self.result is not None:
+            if self.result[1] == password:
+                return True
+        return False
+
     #Query 3 회원가입 기능
     def sign_in(self, userID, honorID, email, password, name):
         """
@@ -44,23 +66,22 @@ class myDB:
             password : 유저의 비밀번호
             name : 유저의 이름
         """
-        self.cursor.execute("SELECT 1 FROM Users WHERE HONORID = %d", (honorID,))
+        self.cursor.execute(f"SELECT 1 FROM users WHERE HONORID = {honorID}''")
         if self.cursor.fetchone() is not None:
-            raise ValueError("ERROR HonorID {honorID} alread exists!!")
+            return False
         
-        self.cursor.execute("SELECT 1 FROM Users WHERE USERID= %s", (userID,))
+        self.cursor.execute("SELECT 1 FROM users WHERE USERID= %s", (userID,))
         if self.cursor.fetchone() is not None:
-            raise ValueError("Error Already exsisting ID")
+            return False
         
         self.query = sql.SQL("""
                             INSERT INTO Users (userID, honorID, email, password, name)
                             VALUES(%d, %d, %s, %s, %s)
                              """)
-        self.cursor.execute(self.query, (userID, honorID, email. password, name,))
+        self.cursor.execute(f"INSERT INTO users (USERID, HONORID, EMAIL, PASSWORD, NAME)
+                            VALUES('{userID}','{honorID}','{email}','{password}','{name}')")
         self.conn.commit()
-        print("User Added Succefully !!")
-
-        ##except error as e : print (e)
+        return True
     
     #Query 5 예약가능한 시설인 경우 예약 시스템
     def reservation(self, UserID, Date, facility_ID):
