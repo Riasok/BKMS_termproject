@@ -16,7 +16,6 @@ def fetch_users():
     conn.close()
     return df
 
-
 class myDB:
     def __init__(self):
         self.conn = connect_to_db()
@@ -49,16 +48,38 @@ class myDB:
         self.cursor.execute(query, (facility_id,))
         self.conn.commit()
 
-    def search_by_region(self, region):
+    def search_by_region(self, region, isfree, isdiscount):
         """
         지역에 따른 시설을 반환하는 쿼리 (Query 1)
         """
-        query = sql.SQL("SELECT * FROM facility_list WHERE 지역 = %s;")
+        region = "%{}%".format(region)
+        if isfree and isdiscount:
+            query = sql.SQL("SELECT * FROM facility_list WHERE 지역 LIKE %s;")
+        elif isfree:
+            query = sql.SQL("SELECT * FROM facility_list WHERE 지역 LIKE %s AND 면제할인 = '할인';")
+        else:
+            query = sql.SQL("SELECT * FROM facility_list WHERE 지역 LIKE %s AND 면제할인 = '면제';")
+
         self.cursor.execute(query, (region,))
         result = self.cursor.fetchall()
         columns = [desc[0] for desc in self.cursor.description]
         return pd.DataFrame(result, columns=columns)
 
+    def search_by_type(self, type, isfree, isdiscount):
+        """
+        업종에 따른 시설을 반환하는 쿼리
+        """
+        if isfree and isdiscount:
+            query = sql.SQL("SELECT * FROM facility_list WHERE 업종 = %s;")
+        elif isfree:
+            query = sql.SQL("SELECT * FROM facility_list WHERE 업종 = %s AND 면제할인 = '할인';")
+        else:
+            query = sql.SQL("SELECT * FROM facility_list WHERE 업종 = %s AND 면제할인 = '면제';")
+        
+        self.cursor.execute(query, (type,))
+        results = self.cursor.fetchall()
+        columns = [desc[0] for desc in self.cursor.description]
+        return pd.DataFrame(results, columns = columns)
 
     ##### 집계
     def search_count_and_rank(self):
@@ -76,22 +97,7 @@ class myDB:
         result = self.cursor.fetchall()
         columns = [desc[0] for desc in self.cursor.description]
         return pd.DataFrame(result, columns=columns)
-
-    def view_count_and_rank(self):
-        """
-        조회 수 count 및 ranking (Query 8)
-        """
-        query = sql.SQL("""
-                        SELECT facilityID, COUNT(*) as view_count
-                        FROM ViewLogs
-                        GROUP BY facilityID
-                        ORDER BY view_count DESC
-                        """)
-        self.cursor.execute(query)
-        results = self.cursor.fetchall()
-        for r in results:
-            print(f"Facility: {r[0]}, View Count: {r[1]}")
-
+    
     def grade_rank(self):
         """
         평점에 따른 top 10 ranking 리턴 (Query 9)      * 리뷰 5개 이상인 시설들 한정
@@ -111,30 +117,69 @@ class myDB:
 
 
     ##### 예약
-    def reservation(self, UserID, Date, facility_ID):
+    def reservation(self, userid, date, facility_ID):
         """
-        시설을 예약하는 쿼리 (Query 5)      * 시간이 겹칠 시 예약 불가능
+        시설을 예약하는 쿼리 (Query 5)
         """
-        self.cursor.execute("SELECT 1 FROM facility WHERE 시설명 = %s AND res = T", (facility_ID,))
-        if self.cursor.fetchone() is not None:
-            raise ValueError("It is not a reservable facuiility")
+        self.cursor.execute("SELECT 1 FROM facility_list WHERE 시설명 = %s AND 예약가능 > 0", (facility_ID,))
+        if self.cursor.fetchone() is None:
+            raise ValueError("It is not a reservable facility or no availability")
 
-        self.cursor.execute("SELECT 1 FROM Reservation WHERE 시설명 = %s AND 예약일시 = %s", (facility_ID, Date))
+        self.cursor.execute("SELECT 1 FROM reservation WHERE 시설명 = %s AND 예약일시 = %s", (facility_ID, date))
         if self.cursor.fetchone() is not None:
             raise ValueError("It is already reserved")
-        
-        self.cursor.execute("SELECT COUNT(*) FROM reserves")
-        self.rID = self.cursor.fetchone()[0]
-
+    
         self.query = sql.SQL("""
-                            INSERT INTO Reserves (reserveID, userID, 예약일시, 시설명)
-                            VALUES(%d, %d, %s, %s, %s)
+                            INSERT INTO reservation (userID, 시설명, 예약일시)
+                            VALUES(%s, %s, %s)
                              """)
-        self.cursor.execute(self.query, (self.rID, UserID. Date, facility_ID,))
+        self.cursor.execute(self.query, (userid, facility_ID, date))
+        self.cursor.execute("UPDATE facility_list SET 예약가능 = 예약가능 - 1 WHERE 시설명 = %s", (facility_ID,))
+
         self.conn.commit()
         print("Reservation Added Succefully !!")
 
+    def update_facility_list(self):
+        '''
+        예약 정보를 바탕으로 예약 가능한 수 업데이트
+        '''
+        temp_table_query = """
+            CREATE TEMP TABLE temp_reservation_count AS
+            SELECT 시설명, COUNT(*) AS 예약횟수
+            FROM reservation
+            GROUP BY 시설명
+        """
+        self.cursor.execute(temp_table_query)
 
+        update_query = """
+            UPDATE facility_list f
+            SET 예약가능 = 10 - COALESCE(t.예약횟수, 0)
+            FROM temp_reservation_count t
+            WHERE f.시설명 = t.시설명
+        """
+        self.cursor.execute(update_query)
+
+        drop_temp_table_query = "DROP TABLE IF EXISTS temp_reservation_count"
+        self.cursor.execute(drop_temp_table_query)
+
+        self.conn.commit()
+        self.cursor.close()
+        self.conn.close()
+        print("facility_list table updated successfully")
+    
+    def fetch_user_reservations(self, userid):
+        """
+        주어진 userid의 예약 정보를 가져오는 함수
+        """
+        query = sql.SQL("""
+                        SELECT * FROM reservation
+                        WHERE userid = %s
+                        ORDER BY 예약일시
+                        """)
+        self.cursor.execute(query, (userid,))
+        results = self.cursor.fetchall()
+        columns = [desc[0] for desc in self.cursor.description]
+        return pd.DataFrame(results, columns=columns)
 
 
     #Query 2 시설과 해당기관에 대한 리뷰 조인
@@ -241,3 +286,17 @@ class myDB:
         # clusters = perform_clustering(data)
         # print(clusters)
         print("Clustering function to be implemented")
+
+    #검색 시 리뷰 출력
+    def fac_reviews(self, facilityID):
+        query = sql.SQL("SELECT * FROM review WHERE 시설명 = %s")
+        self.cursor.execute(query, (facilityID,))
+        result = self.cursor.fetchall()
+        columns = [desc[0] for desc in self.cursor.description]
+        return pd.DataFrame(result, columns=columns)
+    
+    #리뷰 작성
+    def write_review(self, facilityID, userID, stars, review):
+        query = sql.SQL("INSERT INTO review (시설명, userid, 평점, 코멘트) VALUES (%s, %s, %s, %s)")
+        self.cursor.execute(query, (facilityID, userID, stars, review,))
+        
