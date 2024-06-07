@@ -309,4 +309,10 @@ class myDB:
                     UPDATE registered_users 
                     SET userid = %s, password = %s, email = %s, 이름 = %s 
                     WHERE 고유번호 = %s""", (_userid, _password, _email, _name, _honorid,))
-        
+    
+    def fetch_honor_members(self):
+        self.cursor.execute("""
+                            SELECT * FROM prest_info
+                            """)
+        columns = [desc[0] for desc in self.cursor.description]
+        return pd.DataFrame(self.cursor.fetchall(), columns=columns)
