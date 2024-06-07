@@ -344,7 +344,7 @@ def view_page():
         st.experimental_rerun()
     db = myDB()
     honor_members_df = db.fetch_honor_members()
-    st.table(honor_members_df)
+    st.dataframe(honor_members_df)
     db.close()
 
 def search_page():
