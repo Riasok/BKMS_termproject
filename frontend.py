@@ -6,6 +6,7 @@ import base64
 from sql import fetch_users
 from streamlit_star_rating import st_star_rating #pip install st-star-rating
 import streamlit.components.v1 as components
+import time
 
 logo_path = "https://i.namu.wiki/i/PwjNC6S9U1KPSQrTGqnNDEgZ0lPKnNnKJ4ZU4FDFlc5bLZ1HIPTxdt6g5osxuwgq43bUQcym07ndc-irIU4LQLi36KCw3xb1hKOrK6vTRRM4DyieWjSQUGuQ7cDR6kwvflkFRMCKLOwUzO4ERq6YmQ.svg"
 temp_img = "https://i.namu.wiki/i/BC-_tRqPz8Ngo1mZNaM8omKjuTclue4ME8UcbCfGzD-BqIb1lAAU83SIGmeHOZUeq6TvhXa2uaPLpP2PqFw1y5cWyLqcSJ-4bOq8nXLY9xZ8YWBD8y4gt_H-PI_bvoi_jWvyOw7UP9VIXdAavO2SCQ.webp"
@@ -433,7 +434,9 @@ def my_page():
     else:
         st.error("사용자 정보를 가져오는 중 오류가 발생했습니다.")
 
-    # if st.button("내 정보 수정"):
+    # if st.button("내 정보 수정")
+    st.subheader("")
+    st.subheader("개인정보 수정")
     with st.form(key='update_form'):
         new_userid = st.text_input("아이디", user_info['userid'])
         new_name = st.text_input("이름", user_info['이름'])
@@ -443,19 +446,23 @@ def my_page():
         submit_button = st.form_submit_button(label='수정 완료')
             
     if submit_button:
-   #     if st.session_state.users[new_userid]:
-    #        st.error("중복된 아이디입니다.")
-#        else:
-        h_id = st.session_state.users[st.session_state.username][3]
-        h_id = f'{h_id}'
-        del st.session_state.users[st.session_state.username]
-        st.session_state.users[new_userid] = [password, new_email, new_name, h_id]
-        print(st.session_state.users[new_userid])
-        st.success("정보가 성공적으로 수정되었습니다.")
-        st.session_state.username = new_userid
-        db = myDB()
-        db.update(new_userid, password, new_email, new_name, h_id)
-        db.close()    
+        if new_userid in st.session_state.users:
+            st.error("중복된 아이디입니다.")
+        else:
+            h_id = st.session_state.users[st.session_state.username][3]
+            h_id = f'{h_id}'
+            del st.session_state.users[st.session_state.username]
+            st.session_state.users[new_userid] = [password, new_email, new_name, h_id]
+            print(st.session_state.users[new_userid])
+            st.success("정보가 성공적으로 수정되었습니다.")
+            st.session_state.username = new_userid
+            db = myDB()
+            db.update(new_userid, password, new_email, new_name, h_id)
+            db.close()
+            time.sleep(2)
+            st.rerun()
+
+            
 
     st.title("")
     st.subheader(f"{st.session_state.users[st.session_state.username][2]}님의 예약정보")
