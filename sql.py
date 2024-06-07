@@ -91,7 +91,7 @@ class myDB:
         검색 수 count 및 ranking (Query 8)
         """
         query = sql.SQL("""
-                        SELECT f.시설명, COUNT(s.search_id) as 검색수
+                        SELECT f.시설명, COUNT(*) as 검색수
                         FROM searchlogs s
                         JOIN facility_list f ON s.시설명 = f.시설명
                         GROUP BY f.시설명
