@@ -39,6 +39,10 @@ class myDB:
         result = self.cursor.fetchone()
         columns = [desc[0] for desc in self.cursor.description]
         return dict(zip(columns, result))
+    
+    def register_user(self, username, password, email, name, honorID):
+        self.cursor.execute("""INSERT INTO registered_users (userid, 고유번호, email, password, 이름)
+                            VALUES (%s, %s, %s, %s, %s)""", (username, honorID, email, password, name,))
 
     def log_search(self, facility_id):
         """
