@@ -352,7 +352,7 @@ def search_page():
     db = myDB()
     if st.session_state.search_type == "시설명":
         search_result = db.search_by_name(st.session_state.search_query)
-        
+        db.log_search(st.session_state.search_query)
         if search_result:
             st.image(temp_img, width=700) #부산국립국악원 항상
             st.write("**시설명:**", search_result.get('시설명'))
