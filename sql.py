@@ -11,7 +11,7 @@ def connect_to_db():
 ##### 로그인
 def fetch_users():
     conn = connect_to_db()
-    query = "SELECT userid, password, email, 이름 FROM registered_users"
+    query = "SELECT userid, password, email,고유번호, 이름 FROM registered_users"
     df = pd.read_sql_query(query, conn)
     conn.close()
     return df
@@ -117,30 +117,69 @@ class myDB:
 
 
     ##### 예약
-    def reservation(self, UserID, Date, facility_ID):
+    def reservation(self, userid, date, facility_ID):
         """
-        시설을 예약하는 쿼리 (Query 5)      * 시간이 겹칠 시 예약 불가능
+        시설을 예약하는 쿼리 (Query 5)
         """
-        self.cursor.execute("SELECT 1 FROM facility WHERE 시설명 = %s AND res = T", (facility_ID,))
-        if self.cursor.fetchone() is not None:
-            raise ValueError("It is not a reservable facuiility")
+        self.cursor.execute("SELECT 1 FROM facility_list WHERE 시설명 = %s AND 예약가능 > 0", (facility_ID,))
+        if self.cursor.fetchone() is None:
+            raise ValueError("It is not a reservable facility or no availability")
 
-        self.cursor.execute("SELECT 1 FROM Reservation WHERE 시설명 = %s AND 예약일시 = %s", (facility_ID, Date))
+        self.cursor.execute("SELECT 1 FROM reservation WHERE 시설명 = %s AND 예약일시 = %s", (facility_ID, date))
         if self.cursor.fetchone() is not None:
             raise ValueError("It is already reserved")
-        
-        self.cursor.execute("SELECT COUNT(*) FROM reserves")
-        self.rID = self.cursor.fetchone()[0]
-
+    
         self.query = sql.SQL("""
-                            INSERT INTO Reserves (reserveID, userID, 예약일시, 시설명)
-                            VALUES(%d, %d, %s, %s, %s)
+                            INSERT INTO reservation (userID, 시설명, 예약일시)
+                            VALUES(%s, %s, %s)
                              """)
-        self.cursor.execute(self.query, (self.rID, UserID. Date, facility_ID,))
+        self.cursor.execute(self.query, (userid, facility_ID, date))
+        self.cursor.execute("UPDATE facility_list SET 예약가능 = 예약가능 - 1 WHERE 시설명 = %s", (facility_ID,))
+
         self.conn.commit()
         print("Reservation Added Succefully !!")
 
+    def update_facility_list(self):
+        '''
+        예약 정보를 바탕으로 예약 가능한 수 업데이트
+        '''
+        temp_table_query = """
+            CREATE TEMP TABLE temp_reservation_count AS
+            SELECT 시설명, COUNT(*) AS 예약횟수
+            FROM reservation
+            GROUP BY 시설명
+        """
+        self.cursor.execute(temp_table_query)
 
+        update_query = """
+            UPDATE facility_list f
+            SET 예약가능 = 10 - COALESCE(t.예약횟수, 0)
+            FROM temp_reservation_count t
+            WHERE f.시설명 = t.시설명
+        """
+        self.cursor.execute(update_query)
+
+        drop_temp_table_query = "DROP TABLE IF EXISTS temp_reservation_count"
+        self.cursor.execute(drop_temp_table_query)
+
+        self.conn.commit()
+        self.cursor.close()
+        self.conn.close()
+        print("facility_list table updated successfully")
+    
+    def fetch_user_reservations(self, userid):
+        """
+        주어진 userid의 예약 정보를 가져오는 함수
+        """
+        query = sql.SQL("""
+                        SELECT * FROM reservation
+                        WHERE userid = %s
+                        ORDER BY 예약일시
+                        """)
+        self.cursor.execute(query, (userid,))
+        results = self.cursor.fetchall()
+        columns = [desc[0] for desc in self.cursor.description]
+        return pd.DataFrame(results, columns=columns)
 
 
     #Query 2 시설과 해당기관에 대한 리뷰 조인
@@ -260,4 +299,10 @@ class myDB:
     def write_review(self, facilityID, userID, stars, review):
         query = sql.SQL("INSERT INTO review (시설명, userid, 평점, 코멘트) VALUES (%s, %s, %s, %s)")
         self.cursor.execute(query, (facilityID, userID, stars, review,))
+        
+    def update(self, _userid, _password, _email, _name, _honorid):
+        self.cursor.execute("""
+                    UPDATE registered_users 
+                    SET userid = %s, password = %s, email = %s, 이름 = %s 
+                    WHERE 고유번호 = %s""", (_userid, _password, _email, _name, _honorid,))
         
