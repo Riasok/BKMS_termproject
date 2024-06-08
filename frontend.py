@@ -7,13 +7,14 @@ from datetime import datetime
 from streamlit_star_rating import st_star_rating      # pip install st-star-rating
 from sql import myDB, log_search, fetch_users
 from sklearn.neighbors import NearestNeighbors
+from datetime import datetime
 
 logo_path = "https://i.namu.wiki/i/PwjNC6S9U1KPSQrTGqnNDEgZ0lPKnNnKJ4ZU4FDFlc5bLZ1HIPTxdt6g5osxuwgq43bUQcym07ndc-irIU4LQLi36KCw3xb1hKOrK6vTRRM4DyieWjSQUGuQ7cDR6kwvflkFRMCKLOwUzO4ERq6YmQ.svg"
 temp_img = "https://i.namu.wiki/i/BC-_tRqPz8Ngo1mZNaM8omKjuTclue4ME8UcbCfGzD-BqIb1lAAU83SIGmeHOZUeq6TvhXa2uaPLpP2PqFw1y5cWyLqcSJ-4bOq8nXLY9xZ8YWBD8y4gt_H-PI_bvoi_jWvyOw7UP9VIXdAavO2SCQ.webp"
 
 def connect_to_db():
     conn = psycopg2.connect(
-        database="postgres", user='postgres', password='your-password', host='localhost', port='your-port'
+        database="postgres", user='postgres', password='postgres', host='localhost', port='5432'
     )
     return conn
 
@@ -26,7 +27,7 @@ def fetch_data_from_db(query):
     conn.close()
     return df
 
-def get_base64_of_bin_file(bin_file):
+def get_base64_of_bin_file(bin_file):   
     '''
     이미지 불러오기
     '''
@@ -77,7 +78,7 @@ def check_login(username, password):
     '''
     로그인 조건 확인하기
     '''
-    return username in st.session_state.users and st.session_state.users[username][0] == password
+    return username in st.session_state.users and st.session_state.users[username][3] == password
 
 def register_user(username, password, email, name):
     '''
@@ -162,7 +163,7 @@ def signup_page():
 
     name = st.text_input("이름")
     email = st.text_input("이메일")
-    honorID = st.text_input("군번")
+    honorID = st.text_input("고유번호")
     username = st.text_input("새로운 아이디")
     password = st.text_input("새로운 비밀번호", type="password")
     
@@ -307,7 +308,7 @@ def main_page():
                 user_reservations["예약일시"] = pd.to_datetime(user_reservations["예약일시"]).dt.date
                 user_reservations = user_reservations[user_reservations["예약일시"] >= datetime.now().date()]
                 user_reservations = user_reservations.sort_values(by="예약일시")
-                st.table(user_reservations[["시설명", "예약일시"]])
+                st.dataframe(user_reservations[["시설명", "예약일시"]])
             else:
                 st.info("다가오는 예약이 없습니다.")
         except Exception as e:
@@ -324,7 +325,7 @@ def main_page():
 
     with st.sidebar:
         st.image(logo_path, width=200)
-        st.title(f"환영합니다 {st.session_state.users[st.session_state.username][2]}님")
+        st.title(f"환영합니다 {st.session_state.users[st.session_state.username][4]}님")
         st.subheader("")
 
         if st.button("마이페이지"):
@@ -374,36 +375,66 @@ def search_page():
     '''
     검색 후 화면
     '''
-    st.subheader(f"{st.session_state.search_type} 이 {st.session_state.search_query}인 검색 결과")
+    st.header(f"{st.session_state.search_type} 이 {st.session_state.search_query}인 검색 결과")
     db = myDB()
     if st.session_state.search_type == "시설명":
-        search_result = db.search_by_name(st.session_state.search_query)
+        search_result, type = db.search_by_name(st.session_state.search_query)
         if search_result:
-            st.image(temp_img, width=700) 
-            st.write("")
-            st.write("**시설명:**", search_result.get('시설명'))
-            st.write("**지역:**", search_result.get('지역'))
-            st.write("**업종:**", search_result.get('업종')) 
-            st.write("**항목:**", search_result.get('항목'))
-            st.write("**예우시설고유번호:**", search_result.get('예우시설고유번호'))
-            st.write("**우대내역:**", search_result.get('우대내역'))
-            st.write("**면제/할인:**", search_result.get('면제할인'))
-            st.write("**기관구분:**", search_result.get('기관구분'))
-            if search_result.get('시설명') not in st.session_state.logged_searches:
-                db.log_search(search_result.get('시설명'))  # Log the search
-                st.session_state.logged_searches.append(search_result.get('시설명'))
+            #예우시설인 경우
+            if type == 0:
+                st.image(temp_img, width=700) 
+                st.write("")
+                st.write("**시설명:**", search_result.get('시설명'))
+                st.write("**예우시설/협약기관 분류:** 협약기관")
+                st.write("**지역:**", search_result.get('지역'))
+                st.write("**업종:**", search_result.get('업종')) 
+                st.write("**항목:**", search_result.get('항목'))
+                st.write("**예우시설고유번호:**", search_result.get('예우시설고유번호'))
+                st.write("**우대내역:**", search_result.get('우대내역'))
+                st.write("**면제/할인:**", search_result.get('면제할인'))
+                st.write("**기관구분:**", search_result.get('기관구분'))
+                if search_result.get('시설명') not in st.session_state.logged_searches:
+                    db.log_search(search_result.get('시설명'))  # Log the search
+                    st.session_state.logged_searches.append(search_result.get('시설명'))
+                
+                st.subheader("")
+                st.subheader("")
+                st.subheader("리뷰 목록")
+                review = st.text_input("",value= "사용 후기를 남겨주세요!")
+                stars = st_star_rating("",maxValue=5, defaultValue=3, key="rating", size = 30)
+                insert = st.button("입력")
+                if insert:
+                    db.write_review(st.session_state.search_query, st.session_state.username, stars, review)
+                    st.rerun()
+                results = db.fac_reviews(st.session_state.search_query)
+                st.dataframe(results, width=800)
             
-            st.subheader("")
-            st.subheader("")
-            st.subheader("리뷰 목록")
-            review = st.text_input("",value= "사용 후기를 남겨주세요!")
-            stars = st_star_rating("",maxValue=5, defaultValue=3, key="rating", size = 30)
-            insert = st.button("입력")
-            if insert:
-                db.write_review(st.session_state.search_query, st.session_state.username, stars, review)
-                st.rerun()
-            results = db.fac_reviews(st.session_state.search_query)
-            st.dataframe(results, width=800)         
+            #협약기관인 경우
+            elif type == 1:
+                st.image(temp_img, width=700) 
+                st.write("")
+                st.write("**시설명:**", search_result.get('시설명'))
+                st.write("**예우시설/협약기관 분류:** 협약기관")
+                st.write("**지역:**", search_result.get('지역'))
+                st.write("**업종:**", search_result.get('업종')) 
+                st.write("**협약기관번호:**", search_result.get('협약기관번호'))
+                st.write("**항목:**", search_result.get('항목'))
+                st.write("**우대내역:**", search_result.get('우대내역'))
+                if search_result.get('시설명') not in st.session_state.logged_searches:
+                    db.log_search(search_result.get('시설명'))  # Log the search
+                    st.session_state.logged_searches.append(search_result.get('시설명'))
+                
+                st.subheader("")
+                st.subheader("")
+                st.subheader("리뷰 목록")
+                review = st.text_input("",value= "사용 후기를 남겨주세요!")
+                stars = st_star_rating("",maxValue=5, defaultValue=3, key="rating", size = 30)
+                insert = st.button("입력")
+                if insert:
+                    db.write_review(st.session_state.search_query, st.session_state.username, stars, review)
+                    st.rerun()
+                results = db.fac_reviews(st.session_state.search_query)
+                st.dataframe(results, width=800)    
         else:
             st.write("해당 시설명을 찾을 수 없습니다.")
         
@@ -419,10 +450,7 @@ def search_page():
                 region = search_result.get('지역')
                 db = myDB()
                 try:
-                    query = "SELECT * FROM recommend_place WHERE 지역명 LIKE %s"
-                    db.cursor.execute(query, (f"%{region}%",))
-                    recommend = db.cursor.fetchall()
-                    rec_facilities = pd.DataFrame(recommend, columns=[desc[0] for desc in db.cursor.description])
+                    rec_facilities = db.region_recommend(region)
                     if not rec_facilities.empty:
                         st.dataframe(rec_facilities)
                     else:
@@ -437,10 +465,7 @@ def search_page():
                 region = search_result.get('지역')
                 db = myDB()
                 try:
-                    query = "SELECT * FROM rec_facility_info WHERE 위치 LIKE %s"
-                    db.cursor.execute(query, (f"%{region}%",))
-                    recommend = db.cursor.fetchall()
-                    rec_facilities = pd.DataFrame(recommend, columns=[desc[0] for desc in db.cursor.description])
+                    rec_facilities = db.near_recommend(region)
                     if not rec_facilities.empty:
                         st.dataframe(rec_facilities)
                     else:
@@ -451,12 +476,19 @@ def search_page():
                     db.close()
                                 
     elif st.session_state.search_type == "지역":
-        search_results = db.search_by_region(st.session_state.search_query, st.session_state.free, st.session_state.discount)
-        st.dataframe(search_results)
+        result1, result2 = db.search_by_region(st.session_state.search_query, st.session_state.free, st.session_state.discount)
+        st.subheader("**예우시설**")
+        st.dataframe(result1)
+        st.subheader("**협약기관**")
+        st.dataframe(result2)
         
     elif st.session_state.search_type == "업종":
-        search_results = db.search_by_type(st.session_state.search_query, st.session_state.free, st.session_state.discount)
-        st.dataframe(search_results)
+        result1, result2 = db.search_by_type(st.session_state.search_query, st.session_state.free, st.session_state.discount)
+        st.subheader("**예우시설**")
+        st.dataframe(result1)
+        st.subheader("**협약기관**")
+        st.dataframe(result2)
+        
     db.close()
 
     if st.button("메인 화면"):
@@ -502,38 +534,35 @@ def my_page():
     else:
         st.error("사용자 정보를 가져오는 중 오류가 발생했습니다.")
 
-    if st.button("내 정보 수정"):
-        with st.form(key='update_form'):
-            new_userid = st.text_input("아이디", user_info['userid'])
-            new_name = st.text_input("이름", user_info['이름'])
-            new_email = st.text_input("이메일", user_info['email'])
-            password = st.text_input("비밀번호", type='password')
+    st.subheader("")
+    st.subheader("내 정보 수정")
+    with st.form(key='update_form'):
+        # new_userid = st.text_input("아이디", user_info['userid'])
+        new_userid = user_id
+        new_name = st.text_input("이름", user_info['이름'])
+        new_email = st.text_input("이메일", user_info['email'])
+        password = st.text_input("비밀번호", type='password')
 
-            submit_button = st.form_submit_button(label='수정 완료')
+        submit_button = st.form_submit_button(label='수정 완료')
 
-            if submit_button:
+        if submit_button:
+            if new_userid in st.session_state.users:
+                st.error("중복된 아이디입니다")
+            else:
+                h_id = st.session_state.users[st.session_state.username][1]
                 db = myDB()
-                existing_user = fetch_data_from_db(f"SELECT * FROM registered_users WHERE userid = '{new_userid}'")
-                if existing_user:
-                    st.error("중복된 아이디입니다.")
-                else:
-                    try:
-                        db.cursor.execute("""
-                            UPDATE registered_users
-                            SET userid = %s, 이름 = %s, email = %s, password = %s
-                            WHERE userid = %s
-                        """, (new_userid, new_name, new_email, password, user_id))
-                        db.conn.commit()
-                        st.success("정보가 성공적으로 수정되었습니다.")
-                        st.session_state.username = new_userid
-                        st.experimental_rerun()
-                    except Exception as e:
-                        st.error(f"정보 수정 중 오류가 발생했습니다: {e}")
-                    finally:
-                        db.close()
+                db.update(new_userid, password, new_email, new_name, h_id)
+                db.close()
+                
+                del st.session_state.users[st.session_state.username]
+                st.session_state.users[new_userid] = [user_id, h_id, new_email, password, new_name]
+                st.session_state.username = new_userid
+                st.success("정보가 성공적으로 수정되었습니다.")
+                time.sleep(2)
+                st.rerun()
 
     st.title("")
-    st.subheader(f"{st.session_state.users[st.session_state.username][2]}님의 예약정보")
+    st.subheader(f"{st.session_state.users[st.session_state.username][4]}님의 예약정보")
     db = myDB()
     try:
         user_reservations = db.fetch_user_reservations(user_id)
@@ -545,7 +574,7 @@ def my_page():
         st.error(f"예약 정보를 가져오는 중 오류가 발생했습니다: {e}")
 
     st.title("")
-    st.subheader(f"{st.session_state.users[st.session_state.username][2]}님의 리뷰")
+    st.subheader(f"{st.session_state.users[st.session_state.username][4]}님의 리뷰")
     user_review = pd.DataFrame(fetch_data_from_db(f"SELECT * FROM review WHERE userid = '{user_id}'"))
     st.dataframe(user_review, width=800)
 
@@ -562,7 +591,9 @@ def reservation_page():
     (2) 예약목록 및 예약하기 페이지
     '''
     st.title("예약 현황")
-    reservation_data = pd.DataFrame(fetch_data_from_db("SELECT * FROM reservation ORDER BY 예약일시"))
+    cur_date = datetime.now().date()
+    cur_date = cur_date.strftime('%Y-%m-%d')
+    reservation_data = pd.DataFrame(fetch_data_from_db(f"SELECT * FROM reservation WHERE 예약일시 > '{cur_date}' ORDER BY 예약일시"))
     st.dataframe(reservation_data, width = 800)
 
     facility_search = st.text_input("예약 가능 여부를 확인하고 싶은 시설명을 입력하세요")
@@ -859,25 +890,26 @@ def main():
 
     
     if st.session_state.logged_in:
-        main_page()
-    elif st.session_state.show_signup:
-        signup_page()
-    elif st.session_state.show_search:
-        search_page()
-    elif st.session_state.show_mypage:
-        my_page()
-    elif st.session_state.show_reservation:
-        reservation_page()
-    elif st.session_state.show_personalize:
-        personalize_page()
-    elif st.session_state.show_cooplist:
-        cooplist_page()
-    elif st.session_state.show_facilitylist:
-        facilitylist_page()
-    elif st.session_state.show_view:
-        view_page()
-    elif st.session_state.show_px:
-        px_page()
+        if st.session_state.show_signup:
+            signup_page()
+        elif st.session_state.show_search:
+            search_page()
+        elif st.session_state.show_mypage:
+            my_page()
+        elif st.session_state.show_reservation:
+            reservation_page()
+        elif st.session_state.show_personalize:
+            personalize_page()
+        elif st.session_state.show_cooplist:
+            cooplist_page()
+        elif st.session_state.show_facilitylist:
+            facilitylist_page()
+        elif st.session_state.show_view:
+            view_page()
+        elif st.session_state.show_px:
+            px_page()
+        else:
+            main_page()
     else:
         login_page() 
     print(f"Session state: {st.session_state}")  # Debugging statement
