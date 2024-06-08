@@ -17,7 +17,7 @@
 
 ## Overview
 
-![flowchar-img](assets/flowchart.jpg) 
+![flowchar-img](data/main_page.png) 
 
 <br/>
 
