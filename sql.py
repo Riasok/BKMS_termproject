@@ -6,7 +6,7 @@ import random
 
 def connect_to_db():
     conn = psycopg2.connect(
-        database="postgres", user='postgres', password='your-password', host='localhost', port='your-port'
+        database="postgres", user='postgres', password='postgres', host='localhost', port='5432'
     )
     return conn
 
@@ -64,23 +64,41 @@ class myDB:
         self.cursor.execute("SELECT * FROM registered_users WHERE userid = %s", (userid,))
         return self.cursor.fetchone()
 
+    ## 개인정보 수정 ##
+    def update(self, _userid, _password, _email, _name, _h_id):
+        self.cursor.execute("""
+                    UPDATE registered_users 
+                    SET userid = %s, password = %s, email = %s, 이름 = %s
+                    WHERE 고유번호 = %s""", (_userid, _password, _email, _name, _h_id,))
 
     ##### 검색 #####
     def search_by_name(self, name):
         '''
         시설명에 따른 시설 반환
         '''
+        
         query = sql.SQL("SELECT * FROM facility_list WHERE 시설명 = %s;")
         self.cursor.execute(query, (name,))
         result = self.cursor.fetchone()
         columns = [desc[0] for desc in self.cursor.description]
-        return dict(zip(columns, result))
+        _return = dict(zip(columns, result))
+        if _return:
+            return _return, 0
+        
+        #협약기관
+        query = sql.SQL("SELECT * FROM co_op_list WHERE 시설명 = %s;")
+        self.cursor.execute(query, (name,))
+        result = self.cursor.fetchone()
+        columns = [desc[0] for desc in self.cursor.description]
+        _return = dict(zip(columns, result))
+        return _return, 1
+
 
     def log_search(self, facility_id):
         '''
         검색 수 집계를 위해 기록
         '''
-        query = sql.SQL("INSERT INTO searchcount (시설명) VALUES (%s)")
+        query = sql.SQL("INSERT INTO search_logs (search_query) VALUES (%s)")
         self.cursor.execute(query, (facility_id,))
         self.conn.commit()
 
@@ -90,32 +108,54 @@ class myDB:
         '''
         region = "%{}%".format(region)
         if isfree and isdiscount:
-            query = sql.SQL("SELECT * FROM facility_list WHERE 지역 LIKE %s;")
+            query1 = sql.SQL("SELECT * FROM facility_list WHERE 지역 LIKE %s;")
+            query2 = sql.SQL("SELECT * FROM co_op_list WHERE 지역 LIKE %s;")
         elif isfree:
-            query = sql.SQL("SELECT * FROM facility_list WHERE 지역 LIKE %s AND 면제할인 = '할인';")
+            query1 = sql.SQL("SELECT * FROM facility_list WHERE 지역 LIKE %s AND 면제할인 = '할인';")
+            query2 = sql.SQL("SELECT * FROM co_op_list WHERE 지역 LIKE %s AND 우대내용 = '할인';")
         else:
-            query = sql.SQL("SELECT * FROM facility_list WHERE 지역 LIKE %s AND 면제할인 = '면제';")
+            query1 = sql.SQL("SELECT * FROM facility_list WHERE 지역 LIKE %s AND 면제할인 = '면제';")
+            query2 = sql.SQL("SELECT * FROM co_op_list WHERE 지역 LIKE %s AND 우대내용 = '할인';")
 
-        self.cursor.execute(query, (region,))
+        self.cursor.execute(query1, (region,))
         result = self.cursor.fetchall()
         columns = [desc[0] for desc in self.cursor.description]
-        return pd.DataFrame(result, columns=columns)
+        result1 = pd.DataFrame(result,columns=columns)
+
+        self.cursor.execute(query2, (region,))
+        result = self.cursor.fetchall()
+        columns = [desc[0] for desc in self.cursor.description]
+        result2 = pd.DataFrame(result,columns=columns)
+
+        return result1, result2
 
     def search_by_type(self, type, isfree, isdiscount):
         '''
         업종에 따른 시설을 반환
         '''
         if isfree and isdiscount:
-            query = sql.SQL("SELECT * FROM facility_list WHERE 업종 = %s;")
+            query1 = sql.SQL("SELECT * FROM facility_list WHERE 업종 = %s;")
+            query2 = sql.SQL("SELECT * FROM co_op_list WHERE 업종 = %s;")
         elif isfree:
-            query = sql.SQL("SELECT * FROM facility_list WHERE 업종 = %s AND 면제할인 = '할인';")
+            query1 = sql.SQL("SELECT * FROM facility_list WHERE 업종 = %s AND 면제할인 = '할인';")
+            query2 = sql.SQL("SELECT * FROM co_op_list WHERE 업종 = %s AND 우대내용 = '할인';")
         else:
-            query = sql.SQL("SELECT * FROM facility_list WHERE 업종 = %s AND 면제할인 = '면제';")
+            query1 = sql.SQL("SELECT * FROM facility_list WHERE 업종 = %s AND 면제할인 = '면제';")
+            query2 = sql.SQL("SELECT * FROM co_op_list WHERE 업종 = %s AND 우대내용 = '면제';")
         
-        self.cursor.execute(query, (type,))
-        results = self.cursor.fetchall()
+        self.cursor.execute(query1, (type,))
+        result = self.cursor.fetchall()
         columns = [desc[0] for desc in self.cursor.description]
-        return pd.DataFrame(results, columns = columns)
+        result1 = pd.DataFrame(result,columns=columns)
+
+        self.cursor.execute(query2, (type,))
+        result = self.cursor.fetchall()
+        columns = [desc[0] for desc in self.cursor.description]
+        result2 = pd.DataFrame(result,columns=columns)
+
+        return result1, result2
+    
+
 
     def fac_reviews(self, facilityID):
         '''
@@ -135,8 +175,8 @@ class myDB:
         '''
         query = sql.SQL("""
                         SELECT f.시설명, COUNT(*) as 검색수
-                        FROM searchcount s
-                        JOIN facility_list f ON s.시설명 = f.시설명
+                        FROM search_logs s
+                        JOIN facility_list f ON s.search_query = f.시설명
                         GROUP BY f.시설명
                         ORDER BY 검색수 DESC
                         """)
@@ -220,10 +260,12 @@ class myDB:
         '''
         query = sql.SQL("""
                         SELECT * FROM reservation
-                        WHERE userid = %s
+                        WHERE userid = %s AND 예약일시 > %s
                         ORDER BY 예약일시
                         """)
-        self.cursor.execute(query, (userid,))
+        cur_date = datetime.now().date()
+        cur_date = cur_date.strftime('%Y-%m-%d')
+        self.cursor.execute(query, (userid,cur_date,))
         results = self.cursor.fetchall()
         columns = [desc[0] for desc in self.cursor.description]
         return pd.DataFrame(results, columns=columns)
@@ -236,12 +278,6 @@ class myDB:
         exists = self.cursor.fetchone()[0] > 0
         return exists
 
-
-    ##### 그 외 #####
-    def recommendation(self, region):
-        '''
-        시설 조회 시 같은 지역 관광지 추천 (Query 11)
-        '''
     
     def write_review(self, facilityID, userID, stars, review):
         '''
@@ -254,15 +290,7 @@ class myDB:
         query = sql.SQL("INSERT INTO review (시설명, userid, 평점, 코멘트) VALUES (%s, %s, %s, %s)")
         self.cursor.execute(query, (facilityID, userID, stars, review,))
         
-    def update(self, _userid, _password, _email, _name, _honorid):
-        '''
-        등록된 회원 정보 수정
-        '''
-        self.cursor.execute("""
-                    UPDATE registered_users 
-                    SET userid = %s, password = %s, email = %s, 이름 = %s 
-                    WHERE 고유번호 = %s""", (_userid, _password, _email, _name, _honorid,))
-    
+
     def fetch_honor_members(self):
         '''
         병역명문가 회원 정보
@@ -284,8 +312,22 @@ class myDB:
             return random.choice(facilities)[0]
         return None
     
+    ##query 11
+    #주변 관광지 추천
+    def region_recommend(self, region):
+        query = sql.SQL("SELECT * FROM recommend_place WHERE 지역명 LIKE %s")
+        self.cursor.execute(query, (f"%{region}%",))
+        recommend = self.cursor.fetchall()
+        rec_facilities = pd.DataFrame(recommend, columns=[desc[0] for desc in self.cursor.description])
+        return rec_facilities
 
-
+    #주변 군 복지시설 휴양 정보
+    def near_recommend(self, region):
+        query = sql.SQL("SELECT * FROM rec_facility_info WHERE 위치 LIKE %s")
+        self.cursor.execute(query, (f"%{region}%",))
+        recommend = self.cursor.fetchall()
+        rec_facilities = pd.DataFrame(recommend, columns=[desc[0] for desc in self.cursor.description])
+        return rec_facilities
 
     # #Query 2 시설과 해당기관에 대한 리뷰 조인
     # def facility_reviews(self):
