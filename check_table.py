@@ -2,15 +2,17 @@ import psycopg2
 
 def connect_to_db():
     conn = psycopg2.connect(
-        database="postgres", user='postgres', password='0911', host='localhost', port='5432'
+        database="your-postgres", user='your-postgres', password='your-password', host='localhost', port='your-port'
     )
     return conn
 
 def check_table_exists(table_name):
+    '''
+    테이블이 존재하는지 확인
+    '''
     conn = connect_to_db()
     cur = conn.cursor()
     
-    # 테이블이 존재하는지 확인하는 쿼리
     cur.execute("""
     SELECT EXISTS (
         SELECT FROM information_schema.tables 
@@ -25,10 +27,12 @@ def check_table_exists(table_name):
     return exists
 
 def describe_table(table_name):
+    '''
+    테이블 구조 확인
+    '''
     conn = connect_to_db()
     cur = conn.cursor()
     
-    # 테이블 구조를 확인하는 쿼리
     cur.execute("""
     SELECT column_name, data_type 
     FROM information_schema.columns 
@@ -41,10 +45,12 @@ def describe_table(table_name):
     return columns
 
 def fetch_table_data(table_name, limit=5):
+    '''
+    테이블 데이터 확인 (5행 출력)
+    '''
     conn = connect_to_db()
     cur = conn.cursor()
     
-    # 테이블 데이터 조회 쿼리
     cur.execute(f"SELECT * FROM {table_name} LIMIT {limit};")
     rows = cur.fetchall()
     cur.close()
@@ -52,10 +58,12 @@ def fetch_table_data(table_name, limit=5):
     return rows
 
 def get_primary_keys(table_name):
+    '''
+    테이블 primary key 확인
+    '''
     conn = connect_to_db()
     cur = conn.cursor()
     
-    # primary key 확인
     cur.execute("""
     SELECT kcu.column_name
     FROM information_schema.table_constraints tc 
@@ -70,10 +78,12 @@ def get_primary_keys(table_name):
     return [pk[0] for pk in primary_keys]
 
 def get_unique_constraints(table_name):
+    '''
+    테이블 unique constraints 확인
+    '''
     conn = connect_to_db()
     cur = conn.cursor()
     
-    # unique constraints 확인
     cur.execute("""
     SELECT kcu.column_name
     FROM information_schema.table_constraints tc 
@@ -87,13 +97,14 @@ def get_unique_constraints(table_name):
     conn.close()
     return [uc[0] for uc in unique_constraints]
 
+
 if __name__ == "__main__":
-    table_name = 'prest_info'
+    table_name = 'co_op_list'       # 확인하고 싶은 테이블명 입력
     if check_table_exists(table_name):
         print(f"Table '{table_name}' exists.")
         
         columns = describe_table(table_name)
-        print("Table structure:")
+        print("\nTable structure:")
         for column in columns:
             print(f"{column[0]}: {column[1]}")
         
@@ -113,3 +124,6 @@ if __name__ == "__main__":
             print(row)
     else:
         print(f"Table '{table_name}' does not exist.")
+
+
+
