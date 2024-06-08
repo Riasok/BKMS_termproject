@@ -5,11 +5,14 @@ from datetime import datetime
 
 def connect_to_db():
     conn = psycopg2.connect(
-        database="postgres", user='postgres', password='0911', host='localhost', port='5432'
+        database="your-postgres", user='your-postgres', password='your-password', host='localhost', port='your-port'
     )
     return conn
 
 def generate_create_table_query(df, table_name, unique_columns=None):
+    '''
+    CREATE TABLE query 만들기
+    '''
     column_types = {
         'int64': 'INTEGER',
         'float64': 'DECIMAL',
@@ -33,6 +36,9 @@ def generate_create_table_query(df, table_name, unique_columns=None):
     return create_table_query
 
 def remove_duplicates_in_file(file_path, subset_columns=None):
+    '''
+    중복 값 처리
+    '''
     if file_path.endswith('.xlsx'):
         df = pd.read_excel(file_path)
     elif file_path.endswith('.csv'):
@@ -45,6 +51,9 @@ def remove_duplicates_in_file(file_path, subset_columns=None):
     return df
 
 def drop_table_if_exists(table_name):
+    '''
+    중복 테이블 처리
+    '''
     conn = connect_to_db()
     cur = conn.cursor()
     cur.execute(f"DROP TABLE IF EXISTS {table_name} CASCADE;")
@@ -53,6 +62,9 @@ def drop_table_if_exists(table_name):
     conn.close()
 
 def create_table_from_excel(file_path, table_name, subset_columns=None):
+    '''
+    Excel 파일 database로 불러오기
+    '''
     df = remove_duplicates_in_file(file_path, subset_columns)
 
     conn = connect_to_db()
@@ -79,6 +91,9 @@ def create_table_from_excel(file_path, table_name, subset_columns=None):
     conn.close()
 
 def create_additional_tables():
+    '''
+    프로그램을 위해 필요한 추가 데이터들
+    '''
     conn = connect_to_db()
     cur = conn.cursor()
 
@@ -141,6 +156,9 @@ def create_additional_tables():
     conn.close()
 
 def create_view():
+    '''
+    병역명문가 회원 view 생성
+    '''
     conn = connect_to_db()
     cur = conn.cursor()
     cur.execute("""
@@ -154,6 +172,9 @@ def create_view():
     conn.close()
 
 def update_facility_list():
+    '''
+    예약 내역 facility list table에 반영
+    '''
     conn = connect_to_db()
     cur = conn.cursor()
 
@@ -183,7 +204,6 @@ def update_facility_list():
 
 
 if __name__ == "__main__":
-    # setup database (create table)
     create_table_from_excel('data/project_data/1_prest_info.xlsx', 'prest_info', ['고유번호'])
     create_table_from_excel('data/project_data/2_facility_list.xlsx', 'facility_list', ['시설명'])
     create_table_from_excel('data/project_data/3_facility_status.xlsx', 'facility_status')
@@ -199,6 +219,8 @@ if __name__ == "__main__":
     create_table_from_excel('data/additional_data/review.csv', 'review')
     create_table_from_excel('data/additional_data/registered_users.csv', 'registered_users')
     create_table_from_excel('data/additional_data/reservation.csv', 'reservation')
+    create_table_from_excel('data/additional_data/recommend_place.csv', 'recommend_place')
+    create_table_from_excel('data/additional_data/search_logs.csv', 'search_logs')
 
     create_additional_tables()
     create_view()
