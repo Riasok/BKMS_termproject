@@ -887,9 +887,7 @@ def main():
 
     
     if st.session_state.logged_in:
-        if st.session_state.show_signup:
-            signup_page()
-        elif st.session_state.show_search:
+        if st.session_state.show_search:
             search_page()
         elif st.session_state.show_mypage:
             my_page()
@@ -908,7 +906,10 @@ def main():
         else:
             main_page()
     else:
-        login_page() 
+        if st.session_state.show_signup:
+            signup_page()
+        else:
+            login_page() 
     print(f"Session state: {st.session_state}")  # Debugging statement
 
 if __name__ == "__main__":
