@@ -546,20 +546,17 @@ def my_page():
         submit_button = st.form_submit_button(label='수정 완료')
 
         if submit_button:
-            if new_userid in st.session_state.users:
-                st.error("중복된 아이디입니다")
-            else:
-                h_id = st.session_state.users[st.session_state.username][1]
-                db = myDB()
-                db.update(new_userid, password, new_email, new_name, h_id)
-                db.close()
+            h_id = st.session_state.users[st.session_state.username][1]
+            db = myDB()
+            db.update(new_userid, password, new_email, new_name, h_id)
+            db.close()
                 
-                del st.session_state.users[st.session_state.username]
-                st.session_state.users[new_userid] = [user_id, h_id, new_email, password, new_name]
-                st.session_state.username = new_userid
-                st.success("정보가 성공적으로 수정되었습니다.")
-                time.sleep(2)
-                st.rerun()
+            del st.session_state.users[st.session_state.username]
+            st.session_state.users[new_userid] = [user_id, h_id, new_email, password, new_name]
+            st.session_state.username = new_userid
+            st.success("정보가 성공적으로 수정되었습니다.")
+            time.sleep(2)
+            st.rerun()
 
     st.title("")
     st.subheader(f"{st.session_state.users[st.session_state.username][4]}님의 예약정보")
