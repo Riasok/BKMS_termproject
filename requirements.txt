@@ -1,0 +1,4 @@
+psycopg2-binary >= 2.9.9
+pandas >= 2.2.1
+st-star-rating >= 0.0.6
+scikit-learn >= 1.4.1
