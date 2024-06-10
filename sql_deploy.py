@@ -6,7 +6,7 @@ import random
 
 def connect_to_db():
     conn = psycopg2.connect(
-        database="postgres", user='postgres', password='postgres', host='localhost', port='5432'
+        "postgres://avnadmin:AVNS_A9JfpBkyMrgT9ji6YhZ@pg-1d1f61c3-bkmsproject.i.aivencloud.com:22317/defaultdb?sslmode=require"
     )
     return conn
 
