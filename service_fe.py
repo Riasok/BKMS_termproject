@@ -874,7 +874,12 @@ def main():
         st.session_state.show_view = False
         st.session_state.show_px = False
     
-    if st.session_state.logged_in:
+    if not st.sess.logged_in:
+        if not st.session_state.show_signup:
+            login_page()
+        else:
+            signup_page()
+    else:
         if st.session_state.show_search:
             search_page()
         elif st.session_state.show_mypage:
@@ -893,11 +898,6 @@ def main():
             px_page()
         else:
             main_page()
-    else:
-        if st.session_state.show_signup:
-            signup_page()
-        else:
-            login_page() 
 
 if __name__ == "__main__":
     main()
