@@ -864,25 +864,15 @@ def main():
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
         st.session_state.username = ""
-    if "show_signup" not in st.session_state:
         st.session_state.show_signup = False
-    if "show_search" not in st.session_state:
         st.session_state.show_search = False
-    if "show_mypage" not in st.session_state:
         st.session_state.show_mypage = False
-    if "show_reservation" not in st.session_state:
         st.session_state.show_reservation = False
-    if "show_personalize" not in st.session_state:
         st.session_state.show_personalize = False
-    if "show_cooplist" not in st.session_state:
         st.session_state.show_cooplist= False
-    if "show_facilitylist" not in st.session_state:
         st.session_state.show_facilitylist= False
-    if "show_view" not in st.session_state:
         st.session_state.show_view = False
-    if "show_px" not in st.session_state:
         st.session_state.show_px = False
-
     
     if st.session_state.logged_in:
         if st.session_state.show_search:
