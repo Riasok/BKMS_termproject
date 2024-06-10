@@ -99,7 +99,7 @@ def login_page():
     '''
     로그인 페이지
     '''
-    background_pic_path = "data/main_page.png"  
+    background_pic_path = "data/main_page.png2"  
     background_pic_path = get_base64_of_bin_file(background_pic_path)
     st.markdown(
         f"""
