@@ -908,7 +908,6 @@ def main():
             signup_page()
         else:
             login_page() 
-    print(f"Session state: {st.session_state}")  # Debugging statement
 
 if __name__ == "__main__":
     main()
