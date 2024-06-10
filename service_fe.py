@@ -874,7 +874,7 @@ def main():
         st.session_state.show_view = False
         st.session_state.show_px = False
     
-    if not st.sess.logged_in:
+    if not st.session_state.logged_in:
         if not st.session_state.show_signup:
             login_page()
         else:
