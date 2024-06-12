@@ -99,31 +99,6 @@ def create_additional_tables():
 
     additional_table_queries = [
         """
-        CREATE TABLE IF NOT EXISTS reservation (
-            UserID VARCHAR,
-            시설명 VARCHAR,
-            예약일시 TIMESTAMP,
-            FOREIGN KEY (UserID) REFERENCES registered_users(UserID),
-            FOREIGN KEY (시설명) REFERENCES facility_list(시설명)
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS rec_facility_tour_info (
-            시설명 VARCHAR,
-            지역명 VARCHAR,
-            시설위치 VARCHAR,
-            연락처 VARCHAR,
-            FOREIGN KEY (시설명) REFERENCES rec_facility_info(휴양시설명)
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS searchlogs (
-        search_id SERIAL PRIMARY KEY,
-        시설명 VARCHAR,
-        search_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """,
-        """
         ALTER TABLE registered_users
         ADD CONSTRAINT pk_userid PRIMARY KEY (userid);
         """,
